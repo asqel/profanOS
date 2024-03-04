@@ -9,7 +9,7 @@
 #define PIXEL_OFFSET 4
 #define malloc_as_kernel(size) ((void *) c_mem_alloc(size, 0, 6))
 
-#define WIDTH 500
+#define WIDTH 600
 #define HEIGHT 748
 
 typedef struct {
@@ -99,8 +99,8 @@ void free_font(font_data_t *pff) {
 
 uint32_t compute_color(uint8_t color) {
     uint32_t rgb[] = {
-        0x99000000, 0xFF0000AA, 0xFF00AA00, 0xFF00AAAA,
-        0xFFAA0000, 0xFFAA00AA, 0xFFAA5500, 0xFFAAAAAA,
+        0xCC0a060e, 0xFF0000AA, 0xFF00AA00, 0xFF00AAAA,
+        0xFFAA0000, 0xFFAA00AA, 0xFFAAAA00, 0xFFAAAAAA,
         0xFF555555, 0xFF5555FF, 0xFF55FF55, 0xFF55FFFF,
         0xFFFF5555, 0xFFFF55FF, 0xFFFFFF55, 0xFFFFFFFF
     };

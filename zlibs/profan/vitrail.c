@@ -190,7 +190,7 @@ void init(void) {
 
     draw_bg(0, 0, 1024, 768);
 
-    window_t *window = create_window(600, 300, 256, 256);
+    window_t *window = create_window(700, 300, 256, 256);
 
     for (uint32_t y = 0; y < window->size_y / 2; y++) {
         for (uint32_t x = 0; x < window->size_x / 2; x++) {
