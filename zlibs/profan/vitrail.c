@@ -190,13 +190,29 @@ void init(void) {
 
     draw_bg(0, 0, 1024, 768);
 
-    window_t *window = create_window(700, 100, 200, 200);
+    window_t *window = create_window(600, 300, 256, 256);
 
-    for (uint32_t y = 0; y < window->size_y; y++) {
-        for (uint32_t x = 0; x < window->size_x; x++) {
-            window->pixels[y * window->size_x + x] = rand() * 2;
+    for (uint32_t y = 0; y < window->size_y / 2; y++) {
+        for (uint32_t x = 0; x < window->size_x / 2; x++) {
+            window->pixels[y * window->size_x + x] = 0x100000FF;
         }
     }
+    for (uint32_t y = 0; y < window->size_y / 2; y++) {
+        for (uint32_t x = window->size_x / 2; x < window->size_x; x++) {
+            window->pixels[y * window->size_x + x] = 0x1000FF00;
+        }
+    }
+    for (uint32_t y = window->size_y / 2; y < window->size_y; y++) {
+        for (uint32_t x = 0; x < window->size_x / 2; x++) {
+            window->pixels[y * window->size_x + x] = 0x10FF0000;
+        }
+    }
+    for (uint32_t y = window->size_y / 2; y < window->size_y; y++) {
+        for (uint32_t x = window->size_x / 2; x < window->size_x; x++) {
+            window->pixels[y * window->size_x + x] = 0x10FFFF00;
+        }
+    }
+
     refresh_window(window);
 
     // move_window(window, 600, 50);

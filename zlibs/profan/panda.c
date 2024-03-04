@@ -170,6 +170,8 @@ void panda_clear_screen(void) {
     g_panda->cursor_x = 0;
     g_panda->cursor_y = 0;
     g_panda->scroll_offset = 0;
+    g_panda->saved_cursor_x = 0;
+    g_panda->saved_cursor_y = 0;
 }
 
 int compute_ansi_escape(char *str, panda_global_t *g_panda) {
@@ -417,16 +419,39 @@ void panda_get_size(uint32_t *x, uint32_t *y) {
     }
 }
 
+void panda_full_clean(uint32_t color) {
+    if (!g_panda) return;
+    for (int i = 0; i < g_panda->max_lines; i++) {
+        for (int j = 0; j < g_panda->max_cols; j++) {
+            g_panda->screen_buffer[i * g_panda->max_cols + j].content = ' ';
+            g_panda->screen_buffer[i * g_panda->max_cols + j].color = 0xF;
+        }
+    }
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            g_panda->window->pixels[i * WIDTH + j] = color;
+        }
+    }
+    window_refresh(g_panda->window);
+
+    g_panda->cursor_x = 0;
+    g_panda->cursor_y = 0;
+    g_panda->scroll_offset = 0;
+
+    g_panda->saved_cursor_x = 0;
+    g_panda->saved_cursor_y = 0;
+}
+
 int panda_change_font(char *file) {
     if (!g_panda) return 1;
     font_data_t *font = load_psf_font(file);
     if (font == NULL) return 1;
 
-    panda_clear_screen();
     free_font(g_panda->font);
     g_panda->font = font;
     g_panda->max_lines = HEIGHT / g_panda->font->height;
     g_panda->max_cols = WIDTH / g_panda->font->width;
+    panda_full_clean(compute_color(0));
     return 0;
 }
 
@@ -458,9 +483,10 @@ void init_panda(void) {
     g_panda->max_lines = (HEIGHT - 2 * PIXEL_OFFSET - 1) / g_panda->font->height;
     g_panda->max_cols = (WIDTH - 2 * PIXEL_OFFSET - 1) / g_panda->font->width;
 
-    g_panda->window = create_window(10, 10, WIDTH, HEIGHT);
+    g_panda->window = window_create(10, 10, WIDTH, HEIGHT);
 
     int buffer_size = g_panda->max_lines * g_panda->max_cols * sizeof(screen_char_t);
     g_panda->screen_buffer = malloc_as_kernel(buffer_size);
     memset(g_panda->screen_buffer, 0, buffer_size);
+    panda_full_clean(compute_color(0));
 }
