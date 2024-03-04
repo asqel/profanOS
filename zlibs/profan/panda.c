@@ -99,12 +99,12 @@ void free_font(font_data_t *pff) {
 
 uint32_t compute_color(uint8_t color) {
     uint32_t rgb[] = {
-        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
-        0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
-        0x555555, 0x5555FF, 0x55FF55, 0x55FFFF,
-        0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF
+        0x99000000, 0xFF0000AA, 0xFF00AA00, 0xFF00AAAA,
+        0xFFAA0000, 0xFFAA00AA, 0xFFAA5500, 0xFFAAAAAA,
+        0xFF555555, 0xFF5555FF, 0xFF55FF55, 0xFF55FFFF,
+        0xFFFF5555, 0xFFFF55FF, 0xFFFFFF55, 0xFFFFFFFF
     };
-    if (color > 0xF) return 0xFFFFFF;
+    if (color > 0xF) return 0xFFFFFFFF;
     return rgb[(int) color];
 }
 
@@ -148,7 +148,7 @@ void print_char(uint32_t xo, uint32_t yo, uint8_t c, uint8_t color_code) {
             y++;
         }
         for (int j = 7; j >= 0; j--) {
-            instant_pixel(g_panda->window, xo + x + PIXEL_OFFSET, yo + y + PIXEL_OFFSET, char_data[i] & (1 << j) ? fg_color : bg_color);
+            windows_set_pixel_alpha(g_panda->window, xo + x + PIXEL_OFFSET, yo + y + PIXEL_OFFSET, char_data[i] & (1 << j) ? fg_color : bg_color);
             if (x >= g_panda->font->width) break;
             x++;
         }
@@ -334,7 +334,7 @@ void draw_cursor(int errase) {
     uint32_t offset;
     if (!errase) {
         for (uint32_t i = 0; i < g_panda->font->height; i++) {
-            instant_pixel(g_panda->window, g_panda->cursor_x * g_panda->font->width + 1 + PIXEL_OFFSET, (g_panda->cursor_y - g_panda->scroll_offset) * g_panda->font->height + i + PIXEL_OFFSET, 0xFFFFFF);
+            windows_set_pixel_alpha(g_panda->window, g_panda->cursor_x * g_panda->font->width + 1 + PIXEL_OFFSET, (g_panda->cursor_y - g_panda->scroll_offset) * g_panda->font->height + i + PIXEL_OFFSET, 0xFFFFFFFF);
         }
     } else {
         offset = (g_panda->cursor_y - g_panda->scroll_offset) * g_panda->max_cols + g_panda->cursor_x;
