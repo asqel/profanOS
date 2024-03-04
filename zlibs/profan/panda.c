@@ -3,9 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <vitrail.h>
 
 #define SCROLL_LINES 8
+#define PIXEL_OFFSET 4
 #define malloc_as_kernel(size) ((void *) c_mem_alloc(size, 0, 6))
+
+#define WIDTH 500
+#define HEIGHT 748
 
 typedef struct {
     uint32_t width;
@@ -35,8 +40,7 @@ typedef struct {
     uint8_t cursor_is_hidden;
     char color;
 
-    uint32_t *fb;
-    uint32_t pitch;
+    window_t *window;
 
     screen_char_t *screen_buffer;
 
@@ -44,9 +48,6 @@ typedef struct {
 } panda_global_t;
 
 panda_global_t *g_panda;
-
-#define set_pixel(x, y, color) \
-    g_panda->fb[(x) + (y) * g_panda->pitch] = color
 
 void init_panda();
 
@@ -137,9 +138,6 @@ void print_char(uint32_t xo, uint32_t yo, uint8_t c, uint8_t color_code) {
     uint32_t bg_color = compute_color((color_code >> 4) & 0xF);
     uint32_t fg_color = compute_color(color_code & 0xF);
 
-    uint32_t pitch = c_vesa_get_pitch();
-    uint32_t *fb = c_vesa_get_fb();
-
     uint8_t *char_data = g_panda->font->data + (c * g_panda->font->charsize);
 
     uint32_t x = 0;
@@ -150,7 +148,7 @@ void print_char(uint32_t xo, uint32_t yo, uint8_t c, uint8_t color_code) {
             y++;
         }
         for (int j = 7; j >= 0; j--) {
-            fb[(xo + x) + (yo + y) * pitch] = char_data[i] & (1 << j) ? fg_color : bg_color;
+            instant_pixel(g_panda->window, xo + x + PIXEL_OFFSET, yo + y + PIXEL_OFFSET, char_data[i] & (1 << j) ? fg_color : bg_color);
             if (x >= g_panda->font->width) break;
             x++;
         }
@@ -336,7 +334,7 @@ void draw_cursor(int errase) {
     uint32_t offset;
     if (!errase) {
         for (uint32_t i = 0; i < g_panda->font->height; i++) {
-            set_pixel(g_panda->cursor_x * g_panda->font->width + 1, (g_panda->cursor_y - g_panda->scroll_offset) * g_panda->font->height + i, 0xFFFFFF);
+            instant_pixel(g_panda->window, g_panda->cursor_x * g_panda->font->width + 1 + PIXEL_OFFSET, (g_panda->cursor_y - g_panda->scroll_offset) * g_panda->font->height + i + PIXEL_OFFSET, 0xFFFFFF);
         }
     } else {
         offset = (g_panda->cursor_y - g_panda->scroll_offset) * g_panda->max_cols + g_panda->cursor_x;
@@ -392,7 +390,7 @@ void panda_print_string(char *string, int len) {
 
 void panda_set_start(int kernel_cursor) {
     if (!g_panda) return;
-    uint32_t kmax_cols = c_vesa_get_width() / 8;
+    uint32_t kmax_cols = WIDTH / 8;
 
     g_panda->cursor_x = 0;
     g_panda->cursor_y = ((offset_to_cursor_y(kernel_cursor, kmax_cols) + 1) * 16) / g_panda->font->height;
@@ -427,8 +425,8 @@ int panda_change_font(char *file) {
     panda_clear_screen();
     free_font(g_panda->font);
     g_panda->font = font;
-    g_panda->max_lines = c_vesa_get_height() / g_panda->font->height;
-    g_panda->max_cols = c_vesa_get_width() / g_panda->font->width;
+    g_panda->max_lines = HEIGHT / g_panda->font->height;
+    g_panda->max_cols = WIDTH / g_panda->font->width;
     return 0;
 }
 
@@ -457,11 +455,10 @@ void init_panda(void) {
     g_panda->cursor_is_hidden = 1;
     g_panda->color = 0x0F;
 
-    g_panda->max_lines = c_vesa_get_height() / g_panda->font->height;
-    g_panda->max_cols = c_vesa_get_width() / g_panda->font->width;
+    g_panda->max_lines = (HEIGHT - 2 * PIXEL_OFFSET - 1) / g_panda->font->height;
+    g_panda->max_cols = (WIDTH - 2 * PIXEL_OFFSET - 1) / g_panda->font->width;
 
-    g_panda->fb = c_vesa_get_fb();
-    g_panda->pitch = c_vesa_get_pitch();
+    g_panda->window = create_window(10, 10, WIDTH, HEIGHT);
 
     int buffer_size = g_panda->max_lines * g_panda->max_cols * sizeof(screen_char_t);
     g_panda->screen_buffer = malloc_as_kernel(buffer_size);

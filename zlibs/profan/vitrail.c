@@ -1,14 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
-
 #include <syscall.h>
 
 #define VITRAIL_C
 #include <vitrail.h>
 
-#define bg_color 0x100820
+#define OUTLINE_COLOR 0xAAAAAA
+uint32_t *bg;
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 
 void init(void);
 int main(void) {
@@ -16,13 +17,16 @@ int main(void) {
     return 0;
 }
 
-void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y, uint32_t color) {
+void draw_window_border(window_t *window, int errase);
+void refresh_window(window_t *window);
+
+void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y) {
     uint32_t *fb = c_vesa_get_fb();
     uint32_t pitch = c_vesa_get_pitch();
 
     for (uint32_t y_ = 0; y_ < size_y; y_++) {
         for (uint32_t x_ = 0; x_ < size_x; x_++) {
-            fb[(y + y_) * pitch + x + x_] = color;
+            fb[(y + y_) * pitch + x + x_] = bg[y + y_ * 1024 + x_];
         }
     }
 }
@@ -33,12 +37,16 @@ window_t *create_window(int pos_x, int pos_y, int size_x, int size_y) {
     window->pos_y = pos_y;
     window->size_x = size_x;
     window->size_y = size_y;
-    window->pixels = malloc(size_x * size_y * sizeof(uint32_t));
+    window->pixels = calloc(size_x * size_y, sizeof(uint32_t));
+    window->vesa_fb = c_vesa_get_fb();
+    window->vesa_pitch = c_vesa_get_pitch();
+    draw_window_border(window, 0);
+    refresh_window(window);
     return window;
 }
 
 void destroy_window(window_t *window) {
-    draw_bg(window->pos_x, window->pos_y, window->size_x, window->size_y, bg_color);
+    draw_bg(window->pos_x, window->pos_y, window->size_x, window->size_y);
     free(window->pixels);
     free(window);
 }
@@ -55,49 +63,118 @@ void refresh_window(window_t *window) {
 }
 
 void move_window(window_t *window, uint32_t pos_x, uint32_t pos_y) {
-    if (pos_x > window->pos_x && pos_y > window->pos_y) {
-        draw_bg(window->pos_x, window->pos_y,
-            min(pos_x - window->pos_x, window->size_x),
-            window->size_y, 0xFF0000);
-        if (pos_x - window->pos_x < window->size_x)
-            draw_bg(window->pos_x + pos_x - window->pos_x,
-                window->pos_y, window->size_x - (pos_x - window->pos_x),
-                min(pos_y - window->pos_y, window->size_y), 0x00FF00);
-    } else if (pos_x < window->pos_x && pos_y < window->pos_y) {
-        draw_bg(window->size_x + pos_x, window->pos_y,
-            min(window->pos_x - pos_x, window->size_x),
-            window->size_y, 0xFF0000);
-        if (window->pos_x - pos_x < window->size_x)
-            draw_bg(window->pos_x, window->size_y + pos_y,
-                window->size_x - (window->pos_x - pos_x),
-                min(window->pos_y - pos_y, window->size_y), 0x00FF00);
-    } else if (pos_x < window->pos_x && pos_y > window->pos_y) {
-        draw_bg(window->size_x + pos_x, window->pos_y,
-            min(window->pos_x - pos_x, window->size_x),
-            window->size_y, 0xFF0000);
-        if (window->pos_x - pos_x < window->size_x)
-            draw_bg(window->pos_x, window->pos_y,
-                window->size_x - (window->pos_x - pos_x),
-                min(pos_y - window->pos_y, window->size_y), 0x00FF00);
-    } else if (pos_x > window->pos_x && pos_y < window->pos_y) {
-        draw_bg(window->pos_x, window->pos_y,
-            min(pos_x - window->pos_x, window->size_x),
-            window->size_y, 0xFF0000);
-        if (pos_x - window->pos_x < window->size_x)
-            draw_bg(window->pos_x + pos_x - window->pos_x,
-                window->size_y + pos_y, window->size_x - (pos_x - window->pos_x),
-                min(window->pos_y - pos_y, window->size_y), 0x00FF00);
+    uint32_t *fb = c_vesa_get_fb();
+    uint32_t pitch = c_vesa_get_pitch();
+
+    for (uint32_t y = window->pos_y; y < window->pos_y + window->size_y; y++) {
+        for (uint32_t x = window->pos_x; x < window->pos_x + window->size_x; x++) {
+            if (x < pos_x || x >= pos_x + window->size_x || y < pos_y || y >= pos_y + window->size_y) {
+                fb[y * pitch + x] = bg[y * 1024 + x];
+            }
+        }
     }
 
+    draw_window_border(window, 1);
     window->pos_x = pos_x;
     window->pos_y = pos_y;
     refresh_window(window);
+    draw_window_border(window, 0);
+}
+
+void draw_window_border(window_t *window, int errase) {
+    uint32_t *fb = c_vesa_get_fb();
+    uint32_t pitch = c_vesa_get_pitch();
+
+    for (uint32_t x = 0; x < window->size_x; x++) {
+        fb[((window->pos_y - 2) * pitch) + window->pos_x + x] = errase ? bg[(window->pos_y - 2) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
+        fb[(window->pos_y + window->size_y + 1) * pitch + window->pos_x + x] = errase ? bg[(window->pos_y + window->size_y + 1) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
+
+        fb[((window->pos_y - 1) * pitch) + window->pos_x + x] = errase ? bg[(window->pos_y - 1) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
+        fb[(window->pos_y + window->size_y) * pitch + window->pos_x + x] = errase ? bg[(window->pos_y + window->size_y) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
+    }
+
+    for (uint32_t y = 0; y < window->size_y; y++) {
+        fb[(window->pos_y + y) * pitch + window->pos_x - 2] = errase ? bg[(window->pos_y + y) * 1024 + window->pos_x - 2] : OUTLINE_COLOR;
+        fb[(window->pos_y + y) * pitch + window->pos_x + window->size_x + 1] = errase ? bg[(window->pos_y + y) * 1024 + window->pos_x + window->size_x + 1] : OUTLINE_COLOR;
+
+        fb[(window->pos_y + y) * pitch + window->pos_x - 1] = errase ? bg[(window->pos_y + y) * 1024 + window->pos_x - 1] : OUTLINE_COLOR;
+        fb[(window->pos_y + y) * pitch + window->pos_x + window->size_x] = errase ? bg[(window->pos_y + y) * 1024 + window->pos_x + window->size_x] : OUTLINE_COLOR;
+    }
+
+    fb[(window->pos_y - 1) * pitch + window->pos_x - 1] = errase ? bg[(window->pos_y - 1) * 1024 + window->pos_x - 1] : OUTLINE_COLOR;
+    fb[(window->pos_y - 1) * pitch + window->pos_x + window->size_x] = errase ? bg[(window->pos_y - 1) * 1024 + window->pos_x + window->size_x] : OUTLINE_COLOR;
+    fb[(window->pos_y + window->size_y) * pitch + window->pos_x - 1] = errase ? bg[(window->pos_y + window->size_y) * 1024 + window->pos_x - 1] : OUTLINE_COLOR;
+    fb[(window->pos_y + window->size_y) * pitch + window->pos_x + window->size_x] = errase ? bg[(window->pos_y + window->size_y) * 1024 + window->pos_x + window->size_x] : OUTLINE_COLOR;
+}
+
+
+uint32_t *open_bmp(char *path) {
+    // check if file exists
+    FILE *file = fopen(path, "rb");
+    if (!file) {
+        printf("File %s not found\n", path);
+        return NULL;
+    }
+    
+    // open file
+    fseek(file, 0, SEEK_END);
+    int file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    uint8_t *file_content = malloc(file_size);
+    fread(file_content, 1, file_size, file);
+    fclose(file);
+
+    // check if file is a bmp
+    if (file_content[0] != 'B' || file_content[1] != 'M') {
+        free(file_content);
+        printf("File %s is not a bmp\n", path);
+        return NULL;
+    }
+
+    // get image data
+    int width = *(int *)(file_content + 18);
+    int height = *(int *)(file_content + 22);
+    int offset = *(int *)(file_content + 10);
+    int size = *(int *)(file_content + 34);
+    uint8_t *data = file_content + offset;
+
+    if (width <= 0 || height <= 0) {
+        free(file_content);
+        printf("File %s has invalid dimensions\n", path);
+        return NULL;
+    }
+
+    int factor = size / (width * height);
+
+    // copy image data to buffer
+    if (factor != 3 && factor != 4) {
+        free(file_content);
+        printf("File %s has invalid pixel format\n", path);
+        return NULL;        
+    }
+
+    uint32_t *output = malloc(width * height * sizeof(uint32_t));
+
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) { 
+            uint32_t color = data[(j * width + i) * factor] |
+                            (data[(j * width + i) * factor + 1] << 8) |
+                            (data[(j * width + i) * factor + 2] << 16);
+
+            if (factor == 4 && data[(j * width + i) * factor + 3] == 0) continue;
+            output[width * height - (i + j * width + 1)] = color;
+        }
+    }
+
+    free(file_content);
+    return output;
 }
 
 void init(void) {
-    draw_bg(0, 0, 1024, 768, bg_color);
+    bg = open_bmp("/user/win.bmp");
+    draw_bg(0, 0, 1024, 768);
 
-    window_t *window = create_window(100, 100, 200, 200);
+    window_t *window = create_window(700, 100, 200, 200);
 
     for (uint32_t y = 0; y < window->size_y; y++) {
         for (uint32_t x = 0; x < window->size_x; x++) {
@@ -106,5 +183,5 @@ void init(void) {
     }
     refresh_window(window);
 
-    move_window(window, 150, 50);
+    // move_window(window, 600, 50);
 }

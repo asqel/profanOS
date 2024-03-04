@@ -102,9 +102,7 @@ int main(void) {
         sum += !print_load_status(i);
     }
 
-    printf("Loaded %d/%d libraries\n\n", sum, total);
-
-    panda_set_start(c_get_cursor_offset());
+    // printf("Loaded %d/%d libraries\n\n", sum, total);
 
     if (c_vesa_does_enable()) {
         use_panda = 1;
