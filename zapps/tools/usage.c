@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <vitrail.h>
 
 #define HISTOTY_SIZE 80
 
@@ -33,15 +34,7 @@ void add_mem_info(uint32_t *pixel_buffer) {
 }
 
 int main(void) {
-    uint32_t *fb = c_vesa_get_fb();
-    uint32_t pitch = c_vesa_get_pitch();
-    uint32_t width = c_vesa_get_width();
-
-    int x_offset = width - HISTOTY_SIZE;
-    if (x_offset < 0 || !c_vesa_does_enable()) {
-        printf("[cpu] fail to start: screen too small\n");
-        return 1;
-    }
+    window_t *window = window_create(1024 - HISTOTY_SIZE - 10, 10, HISTOTY_SIZE, 100);
 
     // wake up the parent process
     c_process_wakeup(c_process_get_ppid(c_process_get_pid()));
@@ -51,8 +44,6 @@ int main(void) {
     int cpu, last_idle, last_total;
     int idle = 0;
     int total = 0;
-
-    uint32_t *pixel_buffer = calloc(HISTOTY_SIZE * 100, sizeof(uint32_t));
 
     while (1) {
         last_idle = idle;
@@ -71,22 +62,18 @@ int main(void) {
 
         // reset pixel buffer
         for (int i = 0; i < HISTOTY_SIZE * 100; i++) {
-            pixel_buffer[i] = 0x000000;
+            window->pixels[i] = 0x000000;
         }
 
         for (int i = 0; i < HISTOTY_SIZE; i++) {
             for (int j = 0; j < history[i]; j++) {
-                pixel_buffer[i + HISTOTY_SIZE * j] = 0x550099;
+                window->pixels[i + HISTOTY_SIZE * j] = 0xFF550099;
             }
         }
 
-        add_mem_info(pixel_buffer);
+        // add_mem_info(pixel_buffer);
 
-        for (int i = 0; i < HISTOTY_SIZE; i++) {
-            for (int j = 0; j < 100; j++) {
-                fb[(x_offset + i) % width + j * pitch] = pixel_buffer[i + HISTOTY_SIZE * j];
-            }
-        }
+        window_refresh(window);
 
         c_process_sleep(c_process_get_pid(), 200);
     }
