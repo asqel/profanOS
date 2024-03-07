@@ -25,9 +25,9 @@ void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y) {
     uint32_t *fb = c_vesa_get_fb();
     uint32_t pitch = c_vesa_get_pitch();
 
-    for (uint32_t y_ = 0; y_ < size_y; y_++) {
-        for (uint32_t x_ = 0; x_ < size_x; x_++) {
-            fb[(y + y_) * pitch + x + x_] = main_bg[y + y_ * 1024 + x_];
+    for (uint32_t i = 0; i < size_y; i++) {
+        for (uint32_t j = 0; j < size_x; j++) {
+            fb[(y + i) * pitch + x + j] = main_bg[((y + i) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (x + j) % VITRAIL_BG_SIDE];
         }
     }
 }
@@ -38,11 +38,16 @@ window_t *create_window(int pos_x, int pos_y, int size_x, int size_y, int enable
     window->pos_y = pos_y;
     window->size_x = size_x;
     window->size_y = size_y;
+
     window->pixels = calloc(size_x * size_y, sizeof(uint32_t));
+
     window->vesa_fb = c_vesa_get_fb();
     window->vesa_pitch = c_vesa_get_pitch();
+    window->vesa_width = c_vesa_get_width();
+
     window->bg = blurred_bg;
     window->enable_border = enable_border;
+    
     if (enable_border)
         draw_window_border(window, 0);
     refresh_window(window);
@@ -69,7 +74,7 @@ void refresh_window(window_t *window) {
                 fb[(window->pos_y + y) * pitch + window->pos_x + x] = color;
                 continue;
             }
-            bg_color = window->bg[(window->pos_y + y) * 1024 + window->pos_x + x];
+            bg_color = window->bg[((window->pos_y + y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + x) % VITRAIL_BG_SIDE];
             fb[(window->pos_y + y) * pitch + window->pos_x + x] = 
                 ((color & 0xFF) * alpha + (bg_color & 0xFF) * (255 - alpha)) / 255 |
                 (((color >> 8) & 0xFF) * alpha + ((bg_color >> 8) & 0xFF) * (255 - alpha)) / 255 << 8 |
@@ -128,15 +133,14 @@ void draw_window_border(window_t *window, int errase) {
 }
 
 
-uint32_t *open_bmp(char *path) {
-    return (void *) 0x200000;
+uint32_t *open_bg_bmp(char *path) {
     // check if file exists
     FILE *file = fopen(path, "rb");
     if (!file) {
         printf("File %s not found\n", path);
         return NULL;
     }
-    
+
     // open file
     fseek(file, 0, SEEK_END);
     int file_size = ftell(file);
@@ -159,7 +163,7 @@ uint32_t *open_bmp(char *path) {
     int size = *(int *)(file_content + 34);
     uint8_t *data = file_content + offset;
 
-    if (width <= 0 || height <= 0) {
+    if (width != VITRAIL_BG_SIDE || height != VITRAIL_BG_SIDE) {
         free(file_content);
         printf("File %s has invalid dimensions\n", path);
         return NULL;
@@ -192,16 +196,16 @@ uint32_t *open_bmp(char *path) {
 }
 
 void init(void) {
-    main_bg = open_bmp("/user/win.bmp");
-    blurred_bg = open_bmp("/user/win_blur.bmp");
+    main_bg = open_bg_bmp("/zada/vitrail/bg.bmp");
+    blurred_bg = open_bg_bmp("/zada/vitrail/bg_blur.bmp");
 
     draw_bg(0, 0, 1024, 768);
 
-    window_t *window = create_window(700, 300, 256, 256, 1);
+    window_t *window = create_window(720, 340, 256, 256, 1);
 
     for (uint32_t y = 0; y < window->size_y / 2; y++) {
         for (uint32_t x = 0; x < window->size_x / 2; x++) {
-            window->pixels[y * window->size_x + x] = 0x100000FF;
+            window->pixels[y * window->size_x + x] = 0x10000000;
         }
     }
     for (uint32_t y = 0; y < window->size_y / 2; y++) {

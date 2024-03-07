@@ -1,6 +1,8 @@
 #ifndef VITRAIL_ID
 #define VITRAIL_ID 1001
 
+#define VITRAIL_BG_SIDE 48
+
 #include <type.h>
 
 typedef struct {
@@ -14,6 +16,7 @@ typedef struct {
 
     uint32_t *vesa_fb;
     uint32_t vesa_pitch;
+    uint32_t vesa_width;
 
     int enable_border;
 
@@ -23,7 +26,7 @@ typedef struct {
 #define windows_set_pixel_alpha(window, x, y, color) do { \
     (window)->pixels[(y) * (window)->size_x + (x)] = color;\
     uint32_t __alpha = ((color) >> 24) & 0xFF;\
-    uint32_t __bg_color = (window)->bg[((window)->pos_y + (y)) * 1024 + (window)->pos_x + (x)];\
+    uint32_t __bg_color = (window)->bg[(((window)->pos_y + (y)) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + ((window)->pos_x + (x)) % VITRAIL_BG_SIDE];\
     (window)->vesa_fb[((window)->pos_y + (y)) * (window)->vesa_pitch + (window)->pos_x + (x)] =\
     (((color) & 0xFF) * __alpha + (__bg_color & 0xFF) * (255 - __alpha)) / 255 |\
     ((((color) >> 8) & 0xFF) * __alpha + ((__bg_color >> 8) & 0xFF) * (255 - __alpha)) / 255 << 8 |\
