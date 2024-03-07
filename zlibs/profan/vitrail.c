@@ -129,10 +129,6 @@ void move_window(window_t *window, uint32_t pos_x, uint32_t pos_y) {
 
     window->pos_x = pos_x;
     window->pos_y = pos_y;
-    refresh_window(window);
-
-    if (window->enable_border)
-        draw_window_border(window, 0);
 }
 
 void draw_window_border(window_t *window, int errase) {
@@ -140,25 +136,25 @@ void draw_window_border(window_t *window, int errase) {
     uint32_t pitch = c_vesa_get_pitch();
 
     for (uint32_t x = 0; x < window->size_x; x++) {
-        fb[((window->pos_y - 2) * pitch) + window->pos_x + x] = errase ? main_bg[(window->pos_y - 2) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
-        fb[(window->pos_y + window->size_y + 1) * pitch + window->pos_x + x] = errase ? main_bg[(window->pos_y + window->size_y + 1) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
+        fb[((window->pos_y - 2) * pitch) + window->pos_x + x] = errase ? main_bg[((window->pos_y - 2) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+        fb[(window->pos_y + window->size_y + 1) * pitch + window->pos_x + x] = errase ? main_bg[((window->pos_y + window->size_y + 1) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
 
-        fb[((window->pos_y - 1) * pitch) + window->pos_x + x] = errase ? main_bg[(window->pos_y - 1) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
-        fb[(window->pos_y + window->size_y) * pitch + window->pos_x + x] = errase ? main_bg[(window->pos_y + window->size_y) * 1024 + window->pos_x + x] : OUTLINE_COLOR;
+        fb[((window->pos_y - 1) * pitch) + window->pos_x + x] = errase ? main_bg[((window->pos_y - 1) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+        fb[(window->pos_y + window->size_y) * pitch + window->pos_x + x] = errase ? main_bg[((window->pos_y + window->size_y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
     }
 
     for (uint32_t y = 0; y < window->size_y; y++) {
-        fb[(window->pos_y + y) * pitch + window->pos_x - 2] = errase ? main_bg[(window->pos_y + y) * 1024 + window->pos_x - 2] : OUTLINE_COLOR;
-        fb[(window->pos_y + y) * pitch + window->pos_x + window->size_x + 1] = errase ? main_bg[(window->pos_y + y) * 1024 + window->pos_x + window->size_x + 1] : OUTLINE_COLOR;
+        fb[(window->pos_y + y) * pitch + window->pos_x - 2] = errase ? main_bg[((window->pos_y + y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x - 2) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+        fb[(window->pos_y + y) * pitch + window->pos_x + window->size_x + 1] = errase ? main_bg[((window->pos_y + y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + window->size_x + 1) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
 
-        fb[(window->pos_y + y) * pitch + window->pos_x - 1] = errase ? main_bg[(window->pos_y + y) * 1024 + window->pos_x - 1] : OUTLINE_COLOR;
-        fb[(window->pos_y + y) * pitch + window->pos_x + window->size_x] = errase ? main_bg[(window->pos_y + y) * 1024 + window->pos_x + window->size_x] : OUTLINE_COLOR;
+        fb[(window->pos_y + y) * pitch + window->pos_x - 1] = errase ? main_bg[((window->pos_y + y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x - 1) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+        fb[(window->pos_y + y) * pitch + window->pos_x + window->size_x] = errase ? main_bg[((window->pos_y + y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + window->size_x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
     }
 
-    fb[(window->pos_y - 1) * pitch + window->pos_x - 1] = errase ? main_bg[(window->pos_y - 1) * 1024 + window->pos_x - 1] : OUTLINE_COLOR;
-    fb[(window->pos_y - 1) * pitch + window->pos_x + window->size_x] = errase ? main_bg[(window->pos_y - 1) * 1024 + window->pos_x + window->size_x] : OUTLINE_COLOR;
-    fb[(window->pos_y + window->size_y) * pitch + window->pos_x - 1] = errase ? main_bg[(window->pos_y + window->size_y) * 1024 + window->pos_x - 1] : OUTLINE_COLOR;
-    fb[(window->pos_y + window->size_y) * pitch + window->pos_x + window->size_x] = errase ? main_bg[(window->pos_y + window->size_y) * 1024 + window->pos_x + window->size_x] : OUTLINE_COLOR;
+    fb[(window->pos_y - 1) * pitch + window->pos_x - 1] = errase ? main_bg[((window->pos_y - 1) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x - 1) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+    fb[(window->pos_y - 1) * pitch + window->pos_x + window->size_x] = errase ? main_bg[((window->pos_y - 1) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + window->size_x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+    fb[(window->pos_y + window->size_y) * pitch + window->pos_x - 1] = errase ? main_bg[((window->pos_y + window->size_y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x - 1) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
+    fb[(window->pos_y + window->size_y) * pitch + window->pos_x + window->size_x] = errase ? main_bg[((window->pos_y + window->size_y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + window->size_x) % VITRAIL_BG_SIDE] : OUTLINE_COLOR;
 }
 
 
@@ -244,13 +240,18 @@ void reorganize_windows(void) {
     uint32_t screen_width = c_vesa_get_width();
     uint32_t screen_height = c_vesa_get_height();
 
-    for (int i = 0; i < nb_windows; i++) {
+    for (int i = nb_windows - 1; i >= 0; i--) {
         if (current_x + windows[i]->size_x + WINDOWS_GAP > screen_width) {
             current_x = 0;
             current_y += windows[i]->size_y + WINDOWS_GAP;
         }
         move_window(windows[i], current_x, current_y);
         current_x += windows[i]->size_x + WINDOWS_GAP;
+    }
+
+    for (int i = 0; i < nb_windows; i++) {
+        refresh_window(windows[i]);
+        draw_window_border(windows[i], 0);
     }
 }
 
@@ -287,7 +288,4 @@ void init(void) {
     }
 
     refresh_window(window);
-
-    move_window(window, 600, 50);
-    while (1);
 }
