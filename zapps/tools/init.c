@@ -93,7 +93,7 @@ char wait_key(void) {
 
 int main(void) {
     char key_char, use_panda = 0;
-    int sum, total, usage_pid;
+    int sum, total, usage_pid = 0;
 
     total = (int) (sizeof(libs_at_boot) / sizeof(lib_t));
     sum = 0;
@@ -113,7 +113,7 @@ int main(void) {
         ) c_kprint("Failed to redirect to panda\n");
         setenv("TERM", "/dev/panda", 1);
         c_sys_set_reporter(userspace_reporter);
-        run_ifexist_pid("/bin/tools/usage.bin", 0, NULL, &usage_pid);
+        run_ifexist_pid("/bin/tools/taskbar.bin", 0, NULL, &usage_pid);
     } else {
         c_kprint("[init] using kernel output for stdout\n");
     }

@@ -32,7 +32,7 @@ void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y) {
     }
 }
 
-window_t *create_window(int pos_x, int pos_y, int size_x, int size_y) {
+window_t *create_window(int pos_x, int pos_y, int size_x, int size_y, int enable_border) {
     window_t *window = malloc(sizeof(window_t));
     window->pos_x = pos_x;
     window->pos_y = pos_y;
@@ -42,7 +42,9 @@ window_t *create_window(int pos_x, int pos_y, int size_x, int size_y) {
     window->vesa_fb = c_vesa_get_fb();
     window->vesa_pitch = c_vesa_get_pitch();
     window->bg = blurred_bg;
-    draw_window_border(window, 0);
+    window->enable_border = enable_border;
+    if (enable_border)
+        draw_window_border(window, 0);
     refresh_window(window);
     return window;
 }
@@ -88,11 +90,15 @@ void move_window(window_t *window, uint32_t pos_x, uint32_t pos_y) {
         }
     }
 
-    draw_window_border(window, 1);
+    if (window->enable_border)
+        draw_window_border(window, 1);
+
     window->pos_x = pos_x;
     window->pos_y = pos_y;
     refresh_window(window);
-    draw_window_border(window, 0);
+
+    if (window->enable_border)
+        draw_window_border(window, 0);
 }
 
 void draw_window_border(window_t *window, int errase) {
@@ -123,6 +129,7 @@ void draw_window_border(window_t *window, int errase) {
 
 
 uint32_t *open_bmp(char *path) {
+    return (void *) 0x200000;
     // check if file exists
     FILE *file = fopen(path, "rb");
     if (!file) {
@@ -190,7 +197,7 @@ void init(void) {
 
     draw_bg(0, 0, 1024, 768);
 
-    window_t *window = create_window(700, 300, 256, 256);
+    window_t *window = create_window(700, 300, 256, 256, 1);
 
     for (uint32_t y = 0; y < window->size_y / 2; y++) {
         for (uint32_t x = 0; x < window->size_x / 2; x++) {
