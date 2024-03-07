@@ -1,0 +1,62 @@
+FUNC is_c
+    IF !(eval !# ~ 1)
+        echo Usage: is_c <file>
+        RETURN
+    END
+
+    set 0 !(rep !0 . #)
+    set 0 !(rep !0 /)
+    set 0 !(rep !0 -)
+
+    set len !(strlen !0)
+
+    IF !(eval !len < 3)
+        RETURN false
+    END
+
+    IF !(eval !0 @ (!len - 2) ~ #)
+        RETURN false
+    END
+
+    IF !(eval !0 @ (!len - 1) ~ c)
+        RETURN false
+    END
+
+    RETURN true
+END
+
+FUNC scc
+    set names ''
+    FOR i !(range !#)
+        FOR e !(rep !(tree !!i |) \n ' ')
+            IF !(is_c !e)
+                echo !e
+                set tmp !(rep !e .c .o)
+                tcc -c !e -o !tmp
+                IF !(eval !exit ~ 0)
+                    RETURN
+                END
+                IF !(strlen '!names')
+                    set names '!names'' '!tmp
+                END; ELSE
+                    set names !tmp
+                END
+            END
+        END
+    END
+
+    echo Compiling zentry
+    tcc -c /sys/zentry.c -o /sys/zentry.o
+
+    echo Compiling tcclib
+    tcc -c /sys/tcclib.c -o /sys/tcclib.o
+
+    echo Linking !names
+    vlink -nostdlib -T /sys/zlink.ld -o /tmp/tmp.elf /sys/zentry.o !names /sys/tcclib.o
+    IF !(eval !exit ~ 0)
+        RETURN
+    END
+
+    xec /tmp/tmp.elf output.bin
+    rm /tmp/tmp.elf
+END
