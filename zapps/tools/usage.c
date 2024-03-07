@@ -34,7 +34,7 @@ void add_mem_info(uint32_t *pixel_buffer) {
 }
 
 int main(void) {
-    window_t *window = window_create(1024 - HISTOTY_SIZE - 10, 10, HISTOTY_SIZE, 100, 1);
+    window_t *window = window_create(HISTOTY_SIZE, 100, 1);
 
     // wake up the parent process
     c_process_wakeup(c_process_get_ppid(c_process_get_pid()));

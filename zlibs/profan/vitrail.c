@@ -6,11 +6,16 @@
 #include <vitrail.h>
 
 #define OUTLINE_COLOR 0xAAAAAA
+#define MAX_WINDOWS 100
+#define WINDOWS_GAP 10
+
 uint32_t *main_bg;
 uint32_t *blurred_bg;
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
+
+window_t **windows;
 
 void init(void);
 int main(void) {
@@ -20,6 +25,7 @@ int main(void) {
 
 void draw_window_border(window_t *window, int errase);
 void refresh_window(window_t *window);
+void reorganize_windows(void);
 
 void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y) {
     uint32_t *fb = c_vesa_get_fb();
@@ -32,10 +38,10 @@ void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y) {
     }
 }
 
-window_t *create_window(int pos_x, int pos_y, int size_x, int size_y, int enable_border) {
+window_t *create_window(uint32_t size_x, uint32_t size_y, int enable_border) {
     window_t *window = malloc(sizeof(window_t));
-    window->pos_x = pos_x;
-    window->pos_y = pos_y;
+    window->pos_x = 10;
+    window->pos_y = 10;
     window->size_x = size_x;
     window->size_y = size_y;
 
@@ -47,10 +53,21 @@ window_t *create_window(int pos_x, int pos_y, int size_x, int size_y, int enable
 
     window->bg = blurred_bg;
     window->enable_border = enable_border;
-    
+
     if (enable_border)
         draw_window_border(window, 0);
     refresh_window(window);
+
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        if (!windows[i]) {
+            windows[i] = window;
+            windows[i + 1] = NULL;
+            break;
+        }
+    }
+
+    reorganize_windows();
+
     return window;
 }
 
@@ -58,6 +75,15 @@ void destroy_window(window_t *window) {
     draw_bg(window->pos_x, window->pos_y, window->size_x, window->size_y);
     free(window->pixels);
     free(window);
+
+    for (int i = 0; i < MAX_WINDOWS; i++) {
+        if (windows[i] != window)
+            continue;
+        for (int j = i; j < MAX_WINDOWS - 1; j++) {
+            windows[j] = windows[j + 1];
+        }
+        break;
+    }
 }
 
 void refresh_window(window_t *window) {
@@ -75,7 +101,7 @@ void refresh_window(window_t *window) {
                 continue;
             }
             bg_color = window->bg[((window->pos_y + y) % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + (window->pos_x + x) % VITRAIL_BG_SIDE];
-            fb[(window->pos_y + y) * pitch + window->pos_x + x] = 
+            fb[(window->pos_y + y) * pitch + window->pos_x + x] =
                 ((color & 0xFF) * alpha + (bg_color & 0xFF) * (255 - alpha)) / 255 |
                 (((color >> 8) & 0xFF) * alpha + ((bg_color >> 8) & 0xFF) * (255 - alpha)) / 255 << 8 |
                 (((color >> 16) & 0xFF) * alpha + ((bg_color >> 16) & 0xFF) * (255 - alpha)) / 255 << 16;
@@ -84,13 +110,16 @@ void refresh_window(window_t *window) {
 }
 
 void move_window(window_t *window, uint32_t pos_x, uint32_t pos_y) {
+    if (pos_x == window->pos_x && pos_y == window->pos_y)
+        return;
+
     uint32_t *fb = c_vesa_get_fb();
     uint32_t pitch = c_vesa_get_pitch();
 
     for (uint32_t y = window->pos_y; y < window->pos_y + window->size_y; y++) {
         for (uint32_t x = window->pos_x; x < window->pos_x + window->size_x; x++) {
             if (x < pos_x || x >= pos_x + window->size_x || y < pos_y || y >= pos_y + window->size_y) {
-                fb[y * pitch + x] = main_bg[y * 1024 + x];
+                fb[y * pitch + x] = main_bg[(y % VITRAIL_BG_SIDE) * VITRAIL_BG_SIDE + x % VITRAIL_BG_SIDE];
             }
         }
     }
@@ -175,13 +204,13 @@ uint32_t *open_bg_bmp(char *path) {
     if (factor != 3 && factor != 4) {
         free(file_content);
         printf("File %s has invalid pixel format\n", path);
-        return NULL;        
+        return NULL;
     }
 
     uint32_t *output = malloc(width * height * sizeof(uint32_t));
 
     for (int i = 0; i < width; i++) {
-        for (int j = 0; j < height; j++) { 
+        for (int j = 0; j < height; j++) {
             uint32_t color = data[(j * width + i) * factor] |
                             (data[(j * width + i) * factor + 1] << 8) |
                             (data[(j * width + i) * factor + 2] << 16);
@@ -195,13 +224,46 @@ uint32_t *open_bg_bmp(char *path) {
     return output;
 }
 
+int compare_windows(const void *a, const void *b) {
+    return ((window_t *) b)->size_y - ((window_t *) a)->size_y;
+}
+
+void reorganize_windows(void) {
+    int nb_windows;
+    for (nb_windows = 0; nb_windows < MAX_WINDOWS; nb_windows++) {
+        if (windows[nb_windows] == NULL) {
+            break;
+        }
+    }
+
+    qsort(windows, nb_windows, sizeof(window_t), compare_windows);
+
+    int current_x = WINDOWS_GAP;
+    int current_y = WINDOWS_GAP;
+
+    uint32_t screen_width = c_vesa_get_width();
+    uint32_t screen_height = c_vesa_get_height();
+
+    for (int i = 0; i < nb_windows; i++) {
+        if (current_x + windows[i]->size_x + WINDOWS_GAP > screen_width) {
+            current_x = 0;
+            current_y += windows[i]->size_y + WINDOWS_GAP;
+        }
+        move_window(windows[i], current_x, current_y);
+        current_x += windows[i]->size_x + WINDOWS_GAP;
+    }
+}
+
 void init(void) {
+    windows = malloc(MAX_WINDOWS * sizeof(window_t *));
+    windows[0] = NULL;
+
     main_bg = open_bg_bmp("/zada/vitrail/bg.bmp");
     blurred_bg = open_bg_bmp("/zada/vitrail/bg_blur.bmp");
 
     draw_bg(0, 0, 1024, 768);
 
-    window_t *window = create_window(720, 340, 256, 256, 1);
+    window_t *window = create_window(256, 256, 1);
 
     for (uint32_t y = 0; y < window->size_y / 2; y++) {
         for (uint32_t x = 0; x < window->size_x / 2; x++) {
@@ -226,5 +288,6 @@ void init(void) {
 
     refresh_window(window);
 
-    // move_window(window, 600, 50);
+    move_window(window, 600, 50);
+    while (1);
 }

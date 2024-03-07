@@ -41,7 +41,7 @@ typedef struct {
 #ifndef VITRAIL_C
 #define get_func_addr ((uint32_t (*)(uint32_t, uint32_t)) *(uint32_t *) 0x1ffffb)
 
-#define window_create ((window_t *(*)(uint32_t, uint32_t, uint32_t, uint32_t, int)) (get_func_addr(VITRAIL_ID, 3)))
+#define window_create ((window_t *(*)(uint32_t, uint32_t, int)) (get_func_addr(VITRAIL_ID, 3)))
 #define window_destroy ((void (*)(window_t *)) (get_func_addr(VITRAIL_ID, 4)))
 #define window_refresh ((void (*)(window_t *)) (get_func_addr(VITRAIL_ID, 5)))
 

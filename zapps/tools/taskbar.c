@@ -18,7 +18,7 @@ void buffer_print(uint32_t *pixel_buffer, int x, int y, char *msg) {
 }
 
 int main(void) {
-    window_t *window = window_create(0, 0, 1024, 20, 0);
+    window_t *window = window_create(1024, 20, 0);
     char *buffer = malloc(1024);
 
     // wake up the parent process

@@ -113,7 +113,7 @@ int main(void) {
         ) c_kprint("Failed to redirect to panda\n");
         setenv("TERM", "/dev/panda", 1);
         c_sys_set_reporter(userspace_reporter);
-        run_ifexist_pid("/bin/tools/taskbar.bin", 0, NULL, &usage_pid);
+        // run_ifexist_pid("/bin/tools/taskbar.bin", 0, NULL, &usage_pid);
     } else {
         c_kprint("[init] using kernel output for stdout\n");
     }

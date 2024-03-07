@@ -483,7 +483,7 @@ void init_panda(void) {
     g_panda->max_lines = (HEIGHT - 2 * PIXEL_OFFSET - 1) / g_panda->font->height;
     g_panda->max_cols = (WIDTH - 2 * PIXEL_OFFSET - 1) / g_panda->font->width;
 
-    g_panda->window = window_create(10, 30, WIDTH, HEIGHT, 1);
+    g_panda->window = window_create(WIDTH, HEIGHT, 1);
 
     int buffer_size = g_panda->max_lines * g_panda->max_cols * sizeof(screen_char_t);
     g_panda->screen_buffer = malloc_as_kernel(buffer_size);
