@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <profan.h>
 #include <syscall.h>
 
 #define VITRAIL_C
@@ -8,6 +9,10 @@
 #define OUTLINE_COLOR 0xAAAAAA
 #define MAX_WINDOWS 100
 #define WINDOWS_GAP 10
+
+#ifndef UINT32_MAX
+#define UINT32_MAX 0xFFFFFFFF
+#endif
 
 uint32_t *main_bg;
 uint32_t *blurred_bg;
@@ -40,8 +45,8 @@ void draw_bg(uint32_t x, uint32_t y, uint32_t size_x, uint32_t size_y) {
 
 window_t *create_window(uint32_t size_x, uint32_t size_y, int enable_border) {
     window_t *window = malloc(sizeof(window_t));
-    window->pos_x = 10;
-    window->pos_y = 10;
+    window->pos_x = UINT32_MAX;
+    window->pos_y = UINT32_MAX;
     window->size_x = size_x;
     window->size_y = size_y;
 
@@ -53,10 +58,6 @@ window_t *create_window(uint32_t size_x, uint32_t size_y, int enable_border) {
 
     window->bg = blurred_bg;
     window->enable_border = enable_border;
-
-    if (enable_border)
-        draw_window_border(window, 0);
-    refresh_window(window);
 
     for (int i = 0; i < MAX_WINDOWS; i++) {
         if (!windows[i]) {
@@ -87,6 +88,9 @@ void destroy_window(window_t *window) {
 }
 
 void refresh_window(window_t *window) {
+    if (window->pos_x == UINT32_MAX || window->pos_y == UINT32_MAX)
+        return;
+
     uint32_t *fb = c_vesa_get_fb();
     uint32_t pitch = c_vesa_get_pitch();
 
@@ -132,6 +136,11 @@ void move_window(window_t *window, uint32_t pos_x, uint32_t pos_y) {
 }
 
 void draw_window_border(window_t *window, int errase) {
+    if (!window->enable_border)
+        return;
+    if (window->pos_x == UINT32_MAX || window->pos_y == UINT32_MAX)
+        return;
+
     uint32_t *fb = c_vesa_get_fb();
     uint32_t pitch = c_vesa_get_pitch();
 
@@ -220,8 +229,40 @@ uint32_t *open_bg_bmp(char *path) {
     return output;
 }
 
-int compare_windows(const void *a, const void *b) {
-    return ((window_t *) b)->size_y - ((window_t *) a)->size_y;
+void sort_windows(int nb_windows) {
+    for (int i = 0; i < nb_windows; i++) {
+        for (int j = i + 1; j < nb_windows; j++) {
+            if (windows[i]->size_x * windows[i]->size_y < windows[j]->size_x * windows[j]->size_y) {
+                window_t *tmp = windows[i];
+                windows[i] = windows[j];
+                windows[j] = tmp;
+            }
+        }
+    }
+}
+
+void find_place_in_grid(uint32_t *grid, uint32_t grid_size_x, uint32_t grid_size_y, uint32_t size_x, uint32_t size_y, uint32_t *pos_x, uint32_t *pos_y) {
+    for (uint32_t y = 0; y < grid_size_y - size_y; y++) {
+        for (uint32_t x = 0; x < grid_size_x - size_x; x++) {
+            int is_free = 1;
+            for (uint32_t i = 0; i < size_y; i++) {
+                for (uint32_t j = 0; j < size_x; j++) {
+                    if (grid[(y + i) * grid_size_x + x + j]) {
+                        is_free = 0;
+                        break;
+                    }
+                }
+                if (!is_free) break;
+            }
+            if (is_free) {
+                *pos_x = x;
+                *pos_y = y;
+                return;
+            }
+        }
+    }
+    *pos_x = 0;
+    *pos_y = 0;
 }
 
 void reorganize_windows(void) {
@@ -232,22 +273,35 @@ void reorganize_windows(void) {
         }
     }
 
-    qsort(windows, nb_windows, sizeof(window_t), compare_windows);
+    sort_windows(nb_windows);
 
-    int current_x = WINDOWS_GAP;
-    int current_y = WINDOWS_GAP;
+    uint32_t grid_size_x = c_vesa_get_width() / WINDOWS_GAP - 1;
+    uint32_t grid_size_y = c_vesa_get_height() / WINDOWS_GAP - 1;
 
-    uint32_t screen_width = c_vesa_get_width();
-    uint32_t screen_height = c_vesa_get_height();
+    uint32_t *grid = calloc(grid_size_x * grid_size_y, sizeof(uint32_t));
 
-    for (int i = nb_windows - 1; i >= 0; i--) {
-        if (current_x + windows[i]->size_x + WINDOWS_GAP > screen_width) {
-            current_x = 0;
-            current_y += windows[i]->size_y + WINDOWS_GAP;
+    for (int i = 0; i < nb_windows; i++) {
+        uint32_t pos_x, pos_y;
+        find_place_in_grid(grid, grid_size_x, grid_size_y, windows[i]->size_x / WINDOWS_GAP + 1, windows[i]->size_y / WINDOWS_GAP + 1, &pos_x, &pos_y);
+        for (uint32_t y = pos_y; y < pos_y + windows[i]->size_y / WINDOWS_GAP + 2; y++) {
+            for (uint32_t x = pos_x; x < pos_x + windows[i]->size_x / WINDOWS_GAP + 2; x++) {
+                if (x >= grid_size_x || y >= grid_size_y) continue;
+                grid[y * grid_size_x + x] = 1;
+            }
         }
-        move_window(windows[i], current_x, current_y);
-        current_x += windows[i]->size_x + WINDOWS_GAP;
+        pos_x++;
+        pos_y++;
+        move_window(windows[i], pos_x * WINDOWS_GAP, pos_y * WINDOWS_GAP);
     }
+    for (uint32_t i = 0; i < grid_size_y; i++) {
+        for (uint32_t j = 0; j < grid_size_x; j++) {
+            serial_debug("%d", grid[i * grid_size_x + j]);
+        }
+        serial_debug("\n");
+    }
+    serial_debug("\n");
+
+    free(grid);
 
     for (int i = 0; i < nb_windows; i++) {
         refresh_window(windows[i]);
