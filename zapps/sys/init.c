@@ -126,7 +126,7 @@ int main(void) {
     fd_printf(1, "Loaded %d/%d modules\n\n", sum, total);
 
     if (c_vesa_does_enable()) {
-        panda_set_start(c_get_cursor_offset());
+        panda_set_start(0, c_get_cursor_offset());
         use_panda = 1;
         if (fm_reopen(0, "/dev/panda")  < 0 ||
             fm_reopen(1, "/dev/panda")  < 0 ||

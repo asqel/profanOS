@@ -77,7 +77,7 @@ int SCREEN_H;
 
 void gui_print(uint32_t x, uint32_t y, char *str, char color) {
     while (*str) {
-        panda_set_char(x, y, *str, color);
+        panda_set_char(0, x, y, *str, color);
         x++;
         str++;
     }
@@ -335,11 +335,11 @@ void display_data(int from_line, int to_line, int x_offset) {
         for (int j = 0; j < SCREEN_W - line_offset - 1; j++) {
             pos = i * SCREEN_W + j;
             if (new_screen[pos] == 0) {
-                panda_set_char(j + line_offset + 1, y, ' ', COLOR_D);
+                panda_set_char(0, j + line_offset + 1, y, ' ', COLOR_D);
             } else if (j == SCREEN_W - line_offset - 2) {
-                panda_set_char(j + line_offset + 1, y, '>', COLOR_M);
+                panda_set_char(0, j + line_offset + 1, y, '>', COLOR_M);
             } else {
-                panda_set_char(j + line_offset + 1, y, new_screen[pos] & 0xFF, new_screen[pos] >> 8);
+                panda_set_char(0, j + line_offset + 1, y, new_screen[pos] & 0xFF, new_screen[pos] >> 8);
             }
         }
 
@@ -347,7 +347,7 @@ void display_data(int from_line, int to_line, int x_offset) {
             // line number
             itoa(from_line + i + 1, line_str + 2, 10);
             gui_print(0, y, line_str + strlen(line_str) - line_offset, COLOR_L);
-            panda_set_char(line_offset, y, ' ', COLOR_D);
+            panda_set_char(0, line_offset, y, ' ', COLOR_D);
         }
 
         y++;
@@ -355,16 +355,16 @@ void display_data(int from_line, int to_line, int x_offset) {
 
     for (int i = y; i <= SCREEN_H; i++) {
         for (int j = line_offset; j < SCREEN_W; j++) {
-            panda_set_char(j, i, ' ', COLOR_D);
+            panda_set_char(0, j, i, ' ', COLOR_D);
         }
         for (int j = 0; j < line_offset; j++) {
-            panda_set_char(j, i, ' ', COLOR_L);
+            panda_set_char(0, j, i, ' ', COLOR_L);
         }
-        panda_set_char(line_offset, i, ' ', COLOR_D);
+        panda_set_char(0, line_offset, i, ' ', COLOR_D);
     }
 
     // cursor
-    panda_draw_cursor(g_cursor_pos - x_offset + line_offset + 1 + cursor_patch, g_cursor_line - from_line + 1);
+    panda_draw_cursor(0, g_cursor_pos - x_offset + line_offset + 1 + cursor_patch, g_cursor_line - from_line + 1);
 
     free(new_screen);
 }
@@ -750,7 +750,7 @@ int main(int argc, char **argv) {
     char *ext = file ? strrchr(file, '.') : NULL;
     rim_syntax_init((ext) ? ext + 1 : "txt");
 
-    panda_get_size((uint32_t *) &SCREEN_W, (uint32_t*) &SCREEN_H);
+    panda_get_size(0, (uint32_t *) &SCREEN_W, (uint32_t*) &SCREEN_H);
     if (SCREEN_W * SCREEN_H == 0) {
         printf("rim: panda is required\n");
         return 1;

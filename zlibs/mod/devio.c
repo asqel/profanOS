@@ -56,7 +56,14 @@ int dev_kterm(void *buffer, uint32_t offset, uint32_t size, uint8_t is_read) {
 int dev_panda(void *buffer, uint32_t offset, uint32_t size, uint8_t is_read) {
     if (is_read)
         return keyboard_read(buffer, size, "/dev/panda");
-    panda_print_string((char *) buffer, size, -1);
+    panda_print_string(0, (char *) buffer, size, -1);
+    return size;
+}
+
+int dev_panda2(void *buffer, uint32_t offset, uint32_t size, uint8_t is_read) {
+    if (is_read)
+        return keyboard_read(buffer, size, "/dev/panda2");
+    panda_print_string(1, (char *) buffer, size, -1);
     return size;
 }
 
@@ -64,7 +71,7 @@ int dev_pander(void *buffer, uint32_t offset, uint32_t size, uint8_t is_read) {
     static uint8_t color = 0x0C;
     if (is_read)
         return keyboard_read(buffer, size, "/dev/pander");
-    color = panda_print_string((char *) buffer, size, color);
+    color = panda_print_string(0, (char *) buffer, size, color);
     if (color == 0x0F) color = 0x0C;
     return size;
 }
@@ -146,6 +153,7 @@ void init_devio(void) {
 
     fu_fctf_create(0, "/dev/kterm",   dev_kterm);
     fu_fctf_create(0, "/dev/panda",   dev_panda);
+    fu_fctf_create(0, "/dev/panda2",  dev_panda2);
     fu_fctf_create(0, "/dev/pander",  dev_pander);
     fu_fctf_create(0, "/dev/userial", dev_userial);
     fu_fctf_create(0, "/dev/serialA", dev_serial_a);

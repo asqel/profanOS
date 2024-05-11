@@ -61,7 +61,7 @@ int get_terminal_width(void) {
     char *term = getenv("TERM");
     if (term == NULL || strcmp(term, "/dev/panda"))
         return 80;
-    panda_get_size(&width, &height);
+    panda_get_size(0, &width, &height);
     return width;
 }
 

@@ -55,7 +55,7 @@ int get_terminal_height(void) {
     char *term = getenv("TERM");
     if (term == NULL || strcmp(term, "/dev/panda") != 0)
         return -1;
-    panda_get_size(&width, &height);
+    panda_get_size(0, &width, &height);
     return height;
 }
 

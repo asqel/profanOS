@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (panda_change_font(full_path)) {
+    if (panda_change_font(0, full_path)) {
         fprintf(stderr, "font: %s: Failed to change font\n", full_path);
         free(full_path);
         return 1;
