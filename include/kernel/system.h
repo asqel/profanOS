@@ -14,8 +14,8 @@
 
 // build settings
 
-#define KERNEL_VERSION  "1.2.1b"
-#define KERNEL_EDITING  "generic"
+#define KERNEL_VERSION  "SIG-1"
+#define KERNEL_EDITING  "signal"
 
 #define PROCESS_MAX     64          // max process count
 #define SCUBA_MAP_MAX   0x10000000  // scuba map to 256MB max

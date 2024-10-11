@@ -309,6 +309,7 @@ int process_create(void *func, int copy_page, char *name, int nargs, uint32_t *a
     }
 
     process_t *new_proc = &plist[place];
+    mem_set(new_proc, 0, sizeof(process_t));
 
     str_ncpy(new_proc->name, name, 63);
 
@@ -316,11 +317,6 @@ int process_create(void *func, int copy_page, char *name, int nargs, uint32_t *a
     new_proc->ppid = g_proc_current->pid;
 
     new_proc->state = PROCESS_FSLPING;
-
-    new_proc->sleep_to = 0;
-    new_proc->run_time = 0;
-
-    new_proc->comm = NULL;
 
     new_proc->in_kernel = (uint32_t) func < 0x200000;
 
@@ -439,7 +435,7 @@ int process_sleep(uint32_t pid, uint32_t ms) {
 }
 
 
-int process_wakeup(uint32_t pid) {   // TODO: sleep to exit gestion
+int process_wakeup(uint32_t pid) {
     int place = i_pid_to_place(pid);
 
     if (place < 0) {
@@ -558,6 +554,135 @@ int process_kill(uint32_t pid) {
     if (pid == g_proc_current->pid) {
         schedule(0);
     }
+
+    return 0;
+}
+
+/***********************
+ *                    *
+ *  SIGNAL FUNCTIONS  *  
+ *                    *
+***********************/
+
+void *signals_default[] = {
+    NULL, // 0
+    NULL, // 1
+    NULL, // 2
+    NULL, // 3
+    NULL, // 4
+    NULL, // 5
+    NULL, // 6
+    NULL, // 7
+    NULL, // 8
+    NULL, // 9
+    NULL, // 10
+    NULL, // 11
+    NULL, // 12
+    NULL, // 13
+    NULL, // 14
+    NULL, // 15
+    NULL, // 16
+    NULL, // 17
+    NULL, // 18
+    NULL, // 19
+    NULL, // 20
+    NULL, // 21
+    NULL, // 22
+    NULL, // 23
+    NULL, // 24
+    NULL, // 25
+    NULL, // 26
+    NULL, // 27
+    NULL, // 28
+    NULL, // 29
+    NULL, // 30
+    NULL, // 31
+};
+
+
+int process_map_signal(uint32_t pid, uint32_t signal, void *func) {
+    int place = i_pid_to_place(pid);
+
+    if (place < 0) {
+        sys_warning("[map_signal] pid %d not found", pid);
+        return ERROR_CODE;
+    }
+
+    if (plist[place].state == PROCESS_IDLETIME) {
+        sys_warning("[map_signal] Can't interact with idle process");
+        return ERROR_CODE;
+    }
+
+    if (plist[place].state >= PROCESS_KILLED) {
+        sys_warning("[map_signal] pid %d already dead", pid);
+        return ERROR_CODE;
+    }
+
+    if (signal >= SIGNAL_MAX) {
+        sys_warning("[map_signal] signal %d not found", signal);
+        return 1;
+    }
+
+    if (signal == SIGKILL || signal == SIGSTOP) {
+        sys_warning("[map_signal] signal %d is reserved", signal);
+        return 1;
+    }
+
+    if (func == SIG_IGNORE) {
+        plist[place].signals[signal] = NULL;
+        return 0;
+    }
+
+    if (func == SIG_DEFAULT) {
+        plist[place].signals[signal] = signals_default[signal];
+        return 0;
+    }
+
+    plist[place].signals[signal] = func;
+
+    return 0;
+}
+
+int process_send_signal(uint32_t pid, uint32_t signal) {
+    int place = i_pid_to_place(pid);
+
+    if (place < 0) {
+        sys_warning("[send_signal] pid %d not found", pid);
+        return ERROR_CODE;
+    }
+
+    if (plist[place].state == PROCESS_IDLETIME) {
+        sys_warning("[send_signal] Can't interact with idle process");
+        return ERROR_CODE;
+    }
+
+    if (plist[place].state >= PROCESS_KILLED) {
+        sys_warning("[send_signal] pid %d already dead", pid);
+        return ERROR_CODE;
+    }
+
+    void *func_addr = plist[place].signals[signal];
+
+    if (func_addr == NULL) {
+        return 0;
+    }
+
+    if (pid == g_proc_current->pid) {
+        if (func_addr >= 0x200000) {
+            sys_exit_kernel(0);
+        }
+
+        ((void (*)()) func_addr)();
+
+        if (func_addr >= 0x200000) {
+            sys_entry_kernel(0);
+        }
+
+        return 0;
+    }
+
+    process_t *proc = &plist[place];
+    proc->regs.eip = (uint32_t) func_addr;
 
     return 0;
 }

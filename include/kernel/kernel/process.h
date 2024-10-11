@@ -34,6 +34,13 @@
 #define process_get_ppid(pid) process_get_info(pid, PROCESS_INFO_PPID)
 #define process_get_state(pid) process_get_info(pid, PROCESS_INFO_STATE)
 
+#define SIGNAL_MAX 32
+#define SIG_DEFAULT ((void *)-1)
+#define SIG_IGNORE  ((void *)-2)
+
+#define SIGKILL     9
+#define SIGSTOP    17
+
 typedef struct {
     uint32_t eax, ebx, ecx, edx, esi, edi, esp, ebp, eip, eflags, cr3;
 } proc_rgs_t;
@@ -46,6 +53,8 @@ typedef struct {
     uint32_t run_time, sleep_to;
 
     uint8_t in_kernel;
+
+    void *signals[SIGNAL_MAX];
 
     char name[64];
     comm_struct_t *comm;
